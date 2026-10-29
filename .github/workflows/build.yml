@@ -39,21 +39,26 @@ jobs:
           DEVICE_DISPLAY_DPI=395
           EOF
 
-          # 3. Скачиваем surya.dsc и адаптируем под courbet
+          # 3. Скачиваем оба файла (dsc и fdf.inc) от surya
           curl -L -o Platform/Xiaomi/sm7150/courbet/courbet.dsc \
             "https://raw.githubusercontent.com/edk2-porting/edk2-msm/master/Platform/Xiaomi/sm7150/surya.dsc"
+          curl -L -o Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc \
+            "https://raw.githubusercontent.com/edk2-porting/edk2-msm/master/Platform/Xiaomi/sm7150/surya.fdf.inc"
 
-          # Заменяем имя устройства и параметры экрана
+          # Проверяем, что скачалось (выводим первые 5 строк в лог)
+          echo "=== HEAD OF DSC ==="
+          head -n 5 Platform/Xiaomi/sm7150/courbet/courbet.dsc
+          echo "=== HEAD OF FDF ==="
+          head -n 5 Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
+
+          # 4. Заменяем название устройства surya на courbet
           sed -i 's/surya/courbet/g' Platform/Xiaomi/sm7150/courbet/courbet.dsc
+          sed -i 's/surya/courbet/g' Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
+
+          # 5. Меняем разрешение экрана и DPI
           sed -i 's/PcdMipiFrameBufferWidth|.*/PcdMipiFrameBufferWidth|1080/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
           sed -i 's/PcdMipiFrameBufferHeight|.*/PcdMipiFrameBufferHeight|2400/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
           sed -i 's/PcdGuiDefaultDPI|.*/PcdGuiDefaultDPI|395/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
-
-          # 4. Создаем пустой courbet.fdf.inc (этого достаточно)
-          cat << 'EOF' > Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
-          [Defines]
-          FvNameGuid         = 763BED0D-DE9F-48F5-81F1-3E90E1B1A015
-          EOF
 
       - name: Build UEFI
         run: |
