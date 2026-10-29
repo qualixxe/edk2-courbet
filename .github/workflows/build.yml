@@ -17,7 +17,6 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          # ⬇️ Добавлены пакеты для кросс-компиляции под ARM64
           sudo apt-get install -y build-essential uuid-dev iasl nasm python3 python3-pip python-is-python3 gettext flex bison \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           pip install --upgrade pip
@@ -31,8 +30,9 @@ jobs:
           # 1. Скачиваем DTB для courbet
           curl -L -o Platform/Xiaomi/sm7150/courbet/FdtBlob_compat/courbet.dtb "https://raw.githubusercontent.com/sm7150-mainline/downstream-fdt/main/fdt-courbet"
 
-          # 2. Создаем файл courbet.conf
+          # 2. Создаем файл courbet.conf с указанием SoC
           cat << 'EOF' > configs/devices/courbet.conf
+          SOC_PLATFORM=sm7150
           DEVICE_DISPLAY_WIDTH=1080
           DEVICE_DISPLAY_HEIGHT=2400
           DEVICE_DISPLAY_DPI=395
