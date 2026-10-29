@@ -28,9 +28,10 @@ jobs:
           mkdir -p configs/devices/
 
           # 1. Скачиваем DTB для courbet
-          curl -L -o Platform/Xiaomi/sm7150/courbet/FdtBlob_compat/courbet.dtb "https://raw.githubusercontent.com/sm7150-mainline/downstream-fdt/main/fdt-courbet"
+          curl -L -o Platform/Xiaomi/sm7150/courbet/FdtBlob_compat/courbet.dtb \
+            "https://raw.githubusercontent.com/sm7150-mainline/downstream-fdt/main/fdt-courbet"
 
-          # 2. Создаем файл courbet.conf с указанием SoC
+          # 2. Создаем файл courbet.conf
           cat << 'EOF' > configs/devices/courbet.conf
           SOC_PLATFORM=sm7150
           DEVICE_DISPLAY_WIDTH=1080
@@ -38,35 +39,20 @@ jobs:
           DEVICE_DISPLAY_DPI=395
           EOF
 
-          # 3. Создаем courbet.dsc (описание платформы)
-          cat << 'EOF' > Platform/Xiaomi/sm7150/courbet/courbet.dsc
-          [Defines]
-            PLATFORM_NAME                  = courbet
-            PLATFORM_GUID                  = 11111111-2222-3333-4444-555555555555
-            PLATFORM_VERSION               = 1.0
-            DSC_SPECIFICATION              = 0x00010005
-            OUTPUT_DIRECTORY               = Build/sm7150/courbet
-            SUPPORTED_ARCHITECTURES        = AARCH64
-            BUILD_TARGETS                  = DEBUG|RELEASE
-            SKUID_IDENTIFIER               = DEFAULT
-            FLASH_DEFINITION               = Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
+          # 3. Скачиваем surya.dsc и адаптируем под courbet
+          curl -L -o Platform/Xiaomi/sm7150/courbet/courbet.dsc \
+            "https://raw.githubusercontent.com/edk2-porting/edk2-msm/master/Platform/Xiaomi/sm7150/surya.dsc"
 
-          [LibraryClasses]
-            !include Platform/Xiaomi/sm7150/sm7150.dsc.inc
+          # Заменяем имя устройства и параметры экрана
+          sed -i 's/surya/courbet/g' Platform/Xiaomi/sm7150/courbet/courbet.dsc
+          sed -i 's/PcdMipiFrameBufferWidth|.*/PcdMipiFrameBufferWidth|1080/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
+          sed -i 's/PcdMipiFrameBufferHeight|.*/PcdMipiFrameBufferHeight|2400/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
+          sed -i 's/PcdGuiDefaultDPI|.*/PcdGuiDefaultDPI|395/' Platform/Xiaomi/sm7150/courbet/courbet.dsc
 
-          [PcdsFixedAtBuild]
-            gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution|1080
-            gEfiMdeModulePkgTokenSpaceGuid.PcdVideoVerticalResolution|2400
-            gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoHorizontalResolution|1080
-            gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoVerticalResolution|2400
-          EOF
-
-          # 4. Создаем courbet.fdf.inc (сборка флеш-образа)
+          # 4. Создаем пустой courbet.fdf.inc (этого достаточно)
           cat << 'EOF' > Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
           [Defines]
           FvNameGuid         = 763BED0D-DE9F-48F5-81F1-3E90E1B1A015
-
-          !include Platform/Xiaomi/sm7150/sm7150.fdf.inc
           EOF
 
       - name: Build UEFI
