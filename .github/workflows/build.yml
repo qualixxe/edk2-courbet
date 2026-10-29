@@ -17,7 +17,8 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential uuid-dev iasl nasm python3 python3-pip python-is-python3
+          # ⬇️ Добавлен gettext (для msgfmt), flex и bison
+          sudo apt-get install -y build-essential uuid-dev iasl nasm python3 python3-pip python-is-python3 gettext flex bison
           pip install --upgrade pip
           pip install edk2-pytool-library edk2-pytool-extensions
 
@@ -50,11 +51,9 @@ jobs:
             FLASH_DEFINITION               = Platform/Xiaomi/sm7150/courbet/courbet.fdf.inc
 
           [LibraryClasses]
-            # Базовые библиотеки, берем из общего sm7150
             !include Platform/Xiaomi/sm7150/sm7150.dsc.inc
 
           [PcdsFixedAtBuild]
-            # Разрешение экрана и DPI для Mi 11 Lite 4G
             gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution|1080
             gEfiMdeModulePkgTokenSpaceGuid.PcdVideoVerticalResolution|2400
             gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoHorizontalResolution|1080
@@ -71,7 +70,6 @@ jobs:
 
       - name: Build UEFI
         run: |
-          # Запускаем скрипт сборки edk2-msm, указывая наше устройство
           chmod +x build.sh
           ./build.sh -d courbet
 
