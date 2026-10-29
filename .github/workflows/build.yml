@@ -1,35 +1,79 @@
-name: Build UEFI for courbet
+name: Build UEFI (courbet)
 
 on:
   workflow_dispatch:
+    inputs:
+      device:
+        description: "Target device"
+        default: "courbet"
+        required: true
+      build_type:
+        description: "Build type"
+        default: "RELEASE"
+        required: true
   push:
+    branches: [main]
     paths:
-      - "**.dsc"
-      - "**.dec"
-      - "**.inf"
-      - "**.fdf"
-      - "**.c"
-      - "**.h"
-      - ".github/workflows/build-courbet.yml"
-  pull_request:
-    paths:
-      - "**.dsc"
-      - "**.dec"
-      - "**.inf"
-      - "**.fdf"
-      - "**.c"
-      - "**.h"
-      - ".github/workflows/build-courbet.yml"
+      - "device/**"
+      - "patches/**"
+      - "build.sh"
+
+env:
+  DEVICE: ${{ github.event.inputs.device || 'courbet' }}
+  BUILD_TYPE: ${{ github.event.inputs.build_type || 'RELEASE' }}
+  GCC_VERSION: "13.2.rel1"
+  GCC_URL: "https://developer.arm.com/-/media/Files/downloads/gnu/${{ env.GCC_VERSION }}/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz"
 
 jobs:
-  build:
+  build-toolchain:
+    name: Build GCC toolchain
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download AArch64 GCC
+        run: |
+          mkdir -p toolchain
+          cd toolchain
+          wget -q --show-progress \
+            "https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz" \
+            -O gcc-aarch64.tar.xz
+          tar xf gcc-aarch64.tar.xz
+          rm gcc-aarch64.tar.xz
+          echo "$(pwd)/$(ls -d arm-gnu-toolchain-*)/bin" >> $GITHUB_PATH
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: toolchain
+          key: gcc-aarch64-${{ env.GCC_VERSION }}
+
+      - name: Verify GCC
+        run: aarch64-none-elf-gcc --version
+
+  build-uefi:
+    name: Build UEFI image
+    needs: build-toolchain
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            /usr/local/lib/android /usr/share/swift \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h /
 
       - name: Install build dependencies
         run: |
@@ -37,45 +81,71 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             uuid-dev \
-            acpica-tools \
+            iasl \
             nasm \
             python3 \
             python3-pip \
-            gcc-aarch64-linux-gnu
+            python3-setuptools \
+            python3-wheel \
+            git \
+            cpio \
+            bc \
+            bison \
+            flex \
+            libssl-dev \
+            libelf-dev \
+            device-tree-compiler \
+            u-boot-tools \
+            lz4 \
+            zip \
+            unzip \
+            xz-utils
 
-      - name: Find courbet DSC
-        id: dsc
-        shell: bash
+      - name: Install Python packages
         run: |
-          dsc="$(find . -type f -iname '*courbet*.dsc' -not -path '*/Build/*' -print -quit)"
-          if [[ -z "$dsc" ]]; then
-            echo "::error::Не найден DSC для courbet. Добавь платформенный файл с courbet в имени."
-            exit 1
-          fi
-          echo "path=$dsc" >> "$GITHUB_OUTPUT"
-          echo "Используется DSC: $dsc"
+          pip3 install --upgrade pip
+          pip3 install \
+            pycryptodome \
+            ecdsa \
+            pyelftools \
+            levenshtein
 
-      - name: Build EDK2 BaseTools
-        run: |
-          make -C BaseTools
-
-      - name: Build courbet
-        shell: bash
-        env:
-          GCC5_AARCH64_PREFIX: aarch64-linux-gnu-
-        run: |
-          source edksetup.sh
-          build \
-            -a AARCH64 \
-            -t GCC5 \
-            -p "${{ steps.dsc.outputs.path }}"
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Restore toolchain cache
+        uses: actions/cache@v4
         with:
-          name: uefi-courbet
-          path: |
-            Build/**/*.efi
-            Build/**/*.fd
-            Build/**/*.img
-          if-no-files-found: error
+          path: toolchain
+          key: gcc-aarch64-${{ env.GCC_VERSION }}
+
+      - name: Setup toolchain
+        run: |
+          if [ ! -d toolchain ]; then
+            mkdir -p toolchain
+            cd toolchain
+            wget -q \
+              "https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz" \
+              -O gcc-aarch64.tar.xz
+            tar xf gcc-aarch64.tar.xz
+            rm gcc-aarch64.tar.xz
+          fi
+          GCC_DIR=$(find toolchain -maxdepth 1 -name "arm-gnu-toolchain-*" -type d | head -1)
+          echo "$GCC_DIR/bin" >> $GITHUB_PATH
+          echo "GCC_ROOT=$GCC_DIR" >> $GITHUB_ENV
+
+      - name: Verify toolchain
+        run: |
+          aarch64-none-elf-gcc --version
+          echo "GCC_ROOT=$GCC_ROOT"
+
+      - name: Clone EDK2
+        run: |
+          git clone --depth=1 \
+            https://github.com/tianocore/edk2.git
+          cd edk2
+          git submodule update --init --recursive
+
+      - name: Clone edk2-msm (qualixxe)
+        run: |
+          git clone --depth=1 \
+            https://github.com/qualixxe/edk2-msm.git
+          cp -r edk2-msm/* .
+          cp -r edk2-msm/.git* .
