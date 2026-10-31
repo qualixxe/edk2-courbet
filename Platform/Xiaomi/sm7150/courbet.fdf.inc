@@ -19,6 +19,13 @@ FILE DRIVER = cd823a4d-7dec-4531-ae5d-4134fa4127b8 {
   }
 
 
+// Prints block devices and the PMIC button chain at ReadyToBoot; needs no input.
+INF Platform/Xiaomi/sm7150/Drivers/CourbetProbe/CourbetProbe.inf
+
+// The common DSC builds UsbKbDxe but the SM7150 FDF never included it. With the
+// phone's buttons dead it is the only other way to drive the UI.
+INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+
 // ACPI Tables
 FILE FREEFORM = 7E374E25-8E01-4FEE-87F2-390C23C606CD {
 # 	Customized DSDT

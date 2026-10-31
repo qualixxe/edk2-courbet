@@ -1,0 +1,40 @@
+#/** @file
+#
+#  Courbet probe - prints block devices and the PMIC button chain at
+#  ReadyToBoot, without needing any input.
+#
+**/
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = CourbetProbe
+  FILE_GUID                      = 7c1f39b2-64a0-4c1e-8f2d-3b5a6e9d1c40
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = CourbetProbeEntryPoint
+
+[Sources]
+  CourbetProbe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  MemoryAllocationLib
+  PrintLib
+
+[Protocols]
+  gEfiBlockIoProtocolGuid              ## CONSUMES
+  gEfiSimpleFileSystemProtocolGuid     ## CONSUMES
+  gEfiSimpleTextInProtocolGuid         ## CONSUMES
+  gEfiLoadedImageProtocolGuid          ## CONSUMES
+
+[Guids]
+  gEfiEventReadyToBootGuid
+
+[Depex]
+  TRUE

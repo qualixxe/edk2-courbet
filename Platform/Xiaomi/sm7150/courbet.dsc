@@ -26,3 +26,6 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Xiaomi"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Mi 11 Lite 4G"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"courbet"
+
+[Components.common]
+  Platform/Xiaomi/sm7150/Drivers/CourbetProbe/CourbetProbe.inf
